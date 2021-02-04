@@ -46,7 +46,7 @@ let downloadReplay (url: Uri) (path: string) =
             else
                 Directory.CreateDirectory(downloadPath) |> ignore
                 webClient.DownloadFile(url, fullPath)
-                printfn $"{url} ==>\n {fullPath}"
+                lock stdout (fun () -> printfn $"{url} ==>\n {fullPath}")
                 return Ok(Some fullPath)
         with e -> return Error e.Message
     }
