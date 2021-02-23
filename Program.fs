@@ -1,3 +1,4 @@
+open FSharpPlus
 open HtmlAgilityPack
 open System
 open System.IO
@@ -11,8 +12,8 @@ let parseResponse response =
     let root = html.DocumentNode
 
     root.Descendants("a")
-    |> Seq.filter (fun n -> n.InnerText = "DOWNLOAD")
-    |> Seq.map
+    |> filter (fun n -> n.InnerText = "DOWNLOAD")
+    |> map
         (fun n ->
             Uri(
                 "https://tenhou.net"
@@ -22,7 +23,7 @@ let parseResponse response =
 let httpClient = new HttpClient()
 
 let getResponse tenhouId =
-    httpClient.GetStringAsync($"https://tenhou.net//0/log/find.cgi?un={tenhouId}")
+    httpClient.GetStringAsync($"https://tenhou.net/0/log/find.cgi?un={tenhouId}")
     |> Async.AwaitTask
 
 let downloadReplay (url: Uri) (path: string) =
@@ -51,20 +52,18 @@ let downloadReplay (url: Uri) (path: string) =
 
 let downloadReplays urls path =
     urls
-    |> Seq.map (fun url -> async { return downloadReplay url path })
-    |> Async.Parallel
-    |> Async.RunSynchronously
-    |> Seq.collect
-        (fun v ->
-            match v with
-            | Ok o -> Option.toList o
+    |> toArray
+    |> Array.Parallel.collect
+        (fun url ->
+            match downloadReplay url path with
+            | Ok o -> toArray o
             | Error e ->
-                printfn $"*** Error: {e}"
-                [])
+                lock stdout (fun () -> printfn $"*** Error: {e}")
+                empty)
 
 [<EntryPoint>]
 let main argv =
-    printfn "tenhou-dl v1.1.0"
+    printfn "tenhou-dl v1.1.1"
 
     match argv with
     | [| tenhouId; path |] ->
@@ -73,7 +72,7 @@ let main argv =
             |> Async.RunSynchronously
             |> parseResponse
 
-        let count = downloadReplays urls path |> Seq.length
+        let count = downloadReplays urls path |> length
         printfn "\nDownloaded %d replay%s" count (if count <> 1 then "s" else "")
     | _ ->
         printfn
