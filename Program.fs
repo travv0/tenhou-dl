@@ -26,34 +26,32 @@ let getResponse tenhouId =
     |> Async.AwaitTask
 
 let downloadReplay (url: Uri) (path: string) =
-    async {
-        try
-            use webClient = new WebClient()
-            let queryString = HttpUtility.ParseQueryString(url.Query)
+    try
+        use webClient = new WebClient()
+        let queryString = HttpUtility.ParseQueryString(url.Query)
 
-            let fileName =
-                queryString.Get("log")
-                + "&tw="
-                + queryString.Get("tw")
-                + ".mjlog"
+        let fileName =
+            queryString.Get("log")
+            + "&tw="
+            + queryString.Get("tw")
+            + ".mjlog"
 
-            let subdir = fileName.Substring(0, 6)
-            let downloadPath = $"{path}/{subdir}"
-            let fullPath = $"{downloadPath}/{fileName}"
+        let subdir = fileName.Substring(0, 6)
+        let downloadPath = $"{path}/{subdir}"
+        let fullPath = $"{downloadPath}/{fileName}"
 
-            if File.Exists(fullPath) then
-                return Ok None
-            else
-                Directory.CreateDirectory(downloadPath) |> ignore
-                webClient.DownloadFile(url, fullPath)
-                lock stdout (fun () -> printfn $"{url} ==>\n {fullPath}")
-                return Ok(Some fullPath)
-        with e -> return Error e.Message
-    }
+        if File.Exists(fullPath) then
+            Ok None
+        else
+            Directory.CreateDirectory(downloadPath) |> ignore
+            webClient.DownloadFile(url, fullPath)
+            lock stdout (fun () -> printfn $"{url} ==>\n {fullPath}")
+            Ok(Some fullPath)
+    with e -> Error e.Message
 
 let downloadReplays urls path =
     urls
-    |> Seq.map (fun url -> downloadReplay url path)
+    |> Seq.map (fun url -> async { return downloadReplay url path })
     |> Async.Parallel
     |> Async.RunSynchronously
     |> Seq.collect
