@@ -23,10 +23,10 @@ let parseResponse response =
 let httpClient = new HttpClient()
 
 let getResponse tenhouId =
-    httpClient.GetStringAsync($"https://tenhou.net/0/log/find.cgi?un={tenhouId}")
+    httpClient.GetStringAsync(sprintf "https://tenhou.net/0/log/find.cgi?un=%s" tenhouId)
     |> Async.AwaitTask
 
-let downloadReplay (url: Uri) (path: string) =
+let downloadReplay (url: Uri) path =
     try
         use webClient = new WebClient()
         let queryString = HttpUtility.ParseQueryString(url.Query)
@@ -38,15 +38,15 @@ let downloadReplay (url: Uri) (path: string) =
             + ".mjlog"
 
         let subdir = fileName.Substring(0, 6)
-        let downloadPath = $"{path}/{subdir}"
-        let fullPath = $"{downloadPath}/{fileName}"
+        let downloadPath = Path.Join(path, subdir)
+        let fullPath = Path.Join(downloadPath, fileName)
 
         if File.Exists(fullPath) then
             Ok None
         else
             Directory.CreateDirectory(downloadPath) |> ignore
             webClient.DownloadFile(url, fullPath)
-            lock stdout (fun () -> printfn $"{url} ==>\n {fullPath}")
+            lock stdout (fun () -> printfn "%s ==>\n %s" url.AbsoluteUri fullPath)
             Ok(Some fullPath)
     with e -> Error e.Message
 
@@ -58,12 +58,12 @@ let downloadReplays urls path =
             match downloadReplay url path with
             | Ok o -> toArray o
             | Error e ->
-                lock stdout (fun () -> printfn $"*** Error: {e}")
+                lock stdout (fun () -> printfn "*** Error: %s" e)
                 empty)
 
 [<EntryPoint>]
 let main argv =
-    printfn "tenhou-dl v1.1.1"
+    printfn "tenhou-dl v1.1.2"
 
     match argv with
     | [| tenhouId; path |] ->
